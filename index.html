@@ -167,6 +167,9 @@
 </div>
 
 <script>
+  // ✅ Cloudflare Worker 프록시 주소
+  const WORKER = 'https://proud-disk-6fe5.hg4290990.workers.dev';
+
   let stocks = [];
   let intervalSec = 10;
   let running = false;
@@ -254,23 +257,20 @@
     btn.classList.add('active');
   }
 
-  // Yahoo Finance API - CORS 없이 직접 호출 가능
   async function fetchPrice(stock) {
     try {
       const symbol = stock.code + '.KS';
-      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d`;
+      const url = `${WORKER}/?symbol=${symbol}`;
       const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
       if (!res.ok) throw new Error('fetch fail');
       const data = await res.json();
       const meta = data?.chart?.result?.[0]?.meta;
       if (!meta) return null;
-
       const price = meta.regularMarketPrice;
       const prevClose = meta.chartPreviousClose || meta.previousClose;
       const change = price - prevClose;
       const rate = ((change / prevClose) * 100);
       const sign = change > 0 ? 'up' : change < 0 ? 'down' : 'flat';
-
       return {
         price: Math.round(price).toLocaleString(),
         changeVal: Math.abs(Math.round(change)).toLocaleString(),
@@ -333,7 +333,7 @@
         if (parts.length > 0) queueSpeak(parts.join(', '));
       }
     }
-    if (anyError) errEl.textContent = '⚠ 일부 종목을 불러오지 못했습니다. 잠시 후 재시도합니다.';
+    if (anyError) errEl.textContent = '⚠ 일부 종목을 불러오지 못했습니다.';
   }
 
   function queueSpeak(text) {
