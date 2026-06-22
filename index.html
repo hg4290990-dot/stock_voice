@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주식 음성 안내</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+  :root {
+    --bg: #0a0e17; --surface: #111827; --surface2: #1a2235; --border: #1e2d45;
+    --accent: #00e5ff; --green: #00e676; --red: #ff4d6d; --text: #e2e8f0; --muted: #64748b;
+    --mono: 'IBM Plex Mono', monospace; --sans: 'Noto Sans KR', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; padding: 20px; }
+  .container { max-width: 480px; margin: 0 auto; }
+  .header { text-align: center; padding: 28px 0 24px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+  .header-label { font-family: var(--mono); font-size: 10px; letter-spacing: 3px; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
+  .header h1 { font-size: 22px; font-weight: 700; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 14px; }
+  .card-title { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 14px; }
+
+  /* 시장 탭 */
+  .market-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .market-tab { flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface2); color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.15s; }
+  .market-tab.active { background: var(--accent); border-color: var(--accent); color: #000; }
+
+  .search-row { display: flex; gap: 8px; }
+  .search-input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; padding: 10px 14px; outline: none; }
+  .search-input:focus { border-color: var(--accent); }
+  .search-input::placeholder { color: var(--muted); font-size: 13px; }
+  .btn-search { background: var(--accent); color: #000; border: none; border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; min-height: 44px; }
+  .stock-tags { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; min-height: 32px; }
+  .stock-tag { display: flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 5px 12px; font-size: 12px; font-family: var(--mono); }
+  .stock-tag.kr { border-color: #3b82f6; }
+  .stock-tag.us { border-color: #f59e0b; }
+  .stock-tag .mkt { font-size: 10px; color: var(--muted); }
+  .stock-tag .remove { color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 2px 4px; }
+
+  .price-board { display: none; flex-direction: column; gap: 10px; margin-top: 4px; }
+  .price-board.visible { display: flex; }
+  .price-row { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; }
+  .price-row.kr { border-left: 3px solid #3b82f6; }
+  .price-row.us { border-left: 3px solid #f59e0b; }
+  .price-name { font-size: 13px; font-weight: 500; color: var(--muted); }
+  .price-mkt { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .price-values { text-align: right; }
+  .price-current { font-family: var(--mono); font-size: 20px; font-weight: 600; line-height: 1; }
+  .price-change { font-family: var(--mono); font-size: 11px; margin-top: 3px; }
+  .up { color: var(--green); } .down { color: var(--red); } .flat { color: var(--muted); }
+
+  .interval-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; }
+  .interval-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-family: var(--mono); font-size: 12px; padding: 12px 4px; cursor: pointer; text-align: center; min-height: 44px; }
+  .interval-btn.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
+
+  .items-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .item-check { display: flex; align-items: center; gap: 9px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 12px; cursor: pointer; user-select: none; min-height: 50px; touch-action: manipulation; }
+  .item-check.active { border-color: var(--accent); background: rgba(0,229,255,0.07); }
+  .check-box { width: 20px; height: 20px; border: 1.5px solid var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .item-check.active .check-box { background: var(--accent); border-color: var(--accent); }
+  .check-icon { display: none; color: #000; font-size: 14px; font-weight: 900; }
+  .item-check.active .check-icon { display: block; }
+  .item-label { font-size: 13px; color: var(--text); }
+
+  .voice-row { display: flex; align-items: center; justify-content: space-between; }
+  .voice-label { font-size: 14px; font-weight: 500; }
+  .toggle { position: relative; width: 52px; height: 30px; cursor: pointer; }
+  .toggle input { display: none; }
+  .toggle-track { width: 100%; height: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 15px; transition: all 0.2s; }
+  .toggle input:checked + .toggle-track { background: var(--accent); border-color: var(--accent); }
+  .toggle-thumb { position: absolute; top: 4px; left: 4px; width: 20px; height: 20px; background: var(--muted); border-radius: 50%; transition: all 0.2s; }
+  .toggle input:checked ~ .toggle-thumb { left: 26px; background: #000; }
+
+  .btn-main { width: 100%; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; font-family: var(--sans); padding: 18px; cursor: pointer; min-height: 56px; margin-bottom: 20px; }
+  .btn-start { background: var(--green); color: #000; }
+  .btn-stop { background: var(--red); color: #fff; }
+
+  .status-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 14px; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+  .status-dot.active { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .status-text { font-size: 12px; font-family: var(--mono); color: var(--muted); }
+  .next-time { margin-left: auto; font-size: 11px; font-family: var(--mono); color: var(--muted); }
+
+  .quick-stocks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .quick-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-size: 12px; padding: 8px 12px; cursor: pointer; font-family: var(--mono); min-height: 36px; }
+  .quick-btn.us { border-color: #f59e0b44; color: #f59e0b; }
+  .quick-btn.kr { border-color: #3b82f644; color: #3b82f6; }
+
+  .error-msg { color: var(--red); font-size: 12px; font-family: var(--mono); margin-top: 8px; text-align: center; }
+  .delay-notice { color: var(--muted); font-size: 11px; font-family: var(--mono); margin-top: 6px; text-align: center; }
+
+  .voice-init { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center; }
+  .voice-init.show { display: flex; }
+  .voice-init-box { background: var(--surface); border: 1px solid var(--accent); border-radius: 16px; padding: 30px 24px; text-align: center; max-width: 300px; }
+  .voice-init-box h3 { font-size: 18px; margin-bottom: 10px; }
+  .voice-init-box p { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+  .btn-voice-ok { background: var(--accent); color: #000; border: none; border-radius: 10px; padding: 14px 32px; font-size: 15px; font-weight: 700; cursor: pointer; width: 100%; }
+
+  .quick-section { margin-top: 10px; }
+  .quick-section-label { font-size: 10px; color: var(--muted); font-family: var(--mono); letter-spacing: 1px; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<div class="voice-init" id="voiceInit">
+  <div class="voice-init-box">
+    <h3>🔊 음성 안내 활성화</h3>
+    <p>폰에서 음성을 재생하려면<br>아래 버튼을 한 번 눌러주세요</p>
+    <button class="btn-voice-ok" onclick="initVoice()">음성 켜기</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="header">
+    <div class="header-label">Real-time Voice Alert</div>
+    <h1>📈 주식 음성 안내</h1>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-dot" id="statusDot"></div>
+    <span class="status-text" id="statusText">대기 중</span>
+    <span class="next-time" id="nextTime"></span>
+  </div>
+
+  <div class="card">
+    <div class="card-title">종목 설정</div>
+
+    <!-- 시장 탭 -->
+    <div class="market-tabs">
+      <div class="market-tab active" id="tab-kr" onclick="switchTab('kr')">🇰🇷 한국 주식</div>
+      <div class="market-tab" id="tab-us" onclick="switchTab('us')">🇺🇸 미국 주식</div>
+    </div>
+
+    <div class="search-row">
+      <input class="search-input" id="stockInput" type="text" placeholder="종목명 또는 코드 입력" />
+      <button class="btn-search" onclick="addStock()">추가</button>
+    </div>
+
+    <!-- 한국 빠른 버튼 -->
+    <div class="quick-section" id="quick-kr">
+      <div class="quick-section-label">빠른 추가</div>
+      <div class="quick-stocks">
+        <button class="quick-btn kr" onclick="addQuick('005930','삼성전자','kr')">삼성전자</button>
+        <button class="quick-btn kr" onclick="addQuick('000660','SK하이닉스','kr')">SK하이닉스</button>
+        <button class="quick-btn kr" onclick="addQuick('035420','NAVER','kr')">NAVER</button>
+        <button class="quick-btn kr" onclick="addQuick('051910','LG화학','kr')">LG화학</button>
+        <button class="quick-btn kr" onclick="addQuick('068270','셀트리온','kr')">셀트리온</button>
+        <button class="quick-btn kr" onclick="addQuick('035720','카카오','kr')">카카오</button>
+      </div>
+    </div>
+
+    <!-- 미국 빠른 버튼 -->
+    <div class="quick-section" id="quick-us" style="display:none;">
+      <div class="quick-section-label">빠른 추가</div>
+      <div class="quick-stocks">
+        <button class="quick-btn us" onclick="addQuick('AAPL','Apple','us')">AAPL</button>
+        <button class="quick-btn us" onclick="addQuick('TSLA','Tesla','us')">TSLA</button>
+        <button class="quick-btn us" onclick="addQuick('NVDA','NVIDIA','us')">NVDA</button>
+        <button class="quick-btn us" onclick="addQuick('MSFT','Microsoft','us')">MSFT</button>
+        <button class="quick-btn us" onclick="addQuick('GOOGL','Google','us')">GOOGL</button>
+        <button class="quick-btn us" onclick="addQuick('AMZN','Amazon','us')">AMZN</button>
+        <button class="quick-btn us" onclick="addQuick('META','Meta','us')">META</button>
+      </div>
+    </div>
+
+    <div class="stock-tags" id="stockTags"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">실시간 현재가</div>
+    <div class="price-board" id="priceBoard"></div>
+    <div id="pricePlaceholder" style="color:var(--muted);font-size:13px;text-align:center;padding:10px 0;">종목을 추가하고 시작하면 표시됩니다</div>
+    <div id="errorMsg" class="error-msg"></div>
+    <div class="delay-notice">※ 미국 주식 15분 지연 · 한국 주식 20분 지연</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">안내 간격</div>
+    <div class="interval-grid">
+      <button class="interval-btn" onclick="setInterval_(5, this)">5초</button>
+      <button class="interval-btn active" onclick="setInterval_(10, this)">10초</button>
+      <button class="interval-btn" onclick="setInterval_(20, this)">20초</button>
+      <button class="interval-btn" onclick="setInterval_(30, this)">30초</button>
+      <button class="interval-btn" onclick="setInterval_(60, this)">1분</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">음성 안내 항목 (중복선택 가능)</div>
+    <div class="items-grid">
+      <div class="item-check active" id="chk-name" onclick="toggleCheck(this)">
+        <div class="check-box"><span class="check-icon">✓</span></div>
+        <span class="item-label">종목명</span>
+      </div>
+      <div class="item-check active" id="chk-price" onclick="toggleCheck(this)">
+        <div class="check-box"><span class="check-icon">✓</span></div>
+        <span class="item-label">현재가</span>
+      </div>
+      <div class="item-check active" id="chk-rate" onclick="toggleCheck(this)">
+        <div class="check-box"><span class="check-icon">✓</span></div>
+        <span class="item-label">등락률</span>
+      </div>
+      <div class="item-check" id="chk-change" onclick="toggleCheck(this)">
+        <div class="check-box"><span class="check-icon">✓</span></div>
+        <span class="item-label">전일대비 등락가</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="voice-row">
+      <span class="voice-label">🔊 음성 안내</span>
+      <label class="toggle">
+        <input type="checkbox" id="voiceToggle" checked>
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
+    </div>
+  </div>
+
+  <button class="btn-main btn-start" id="mainBtn" onclick="toggleService()">▶ 시작</button>
+</div>
+
+<script>
+  const WORKER = 'https://proud-disk-6fe5.hg4290990.workers.dev';
+
+  let stocks = [];
+  let intervalSec = 10;
+  let running = false;
+  let timer = null;
+  let countdown = null;
+  let nextSec = 0;
+  let speechQueue = [];
+  let isSpeaking = false;
+  let voiceReady = false;
+  let currentTab = 'kr';
+
+  const krStockMap = {
+    '삼성전자': '005930', 'sk하이닉스': '000660', '하이닉스': '000660',
+    'naver': '035420', '네이버': '035420', 'lg화학': '051910',
+    '셀트리온': '068270', '카카오': '035720', '현대차': '005380',
+    '포스코': '005490', 'lg전자': '066570', '기아': '000270',
+    '삼성바이오': '207940', '삼성sdi': '006400'
+  };
+
+  const usStockMap = {
+    'apple': 'AAPL', '애플': 'AAPL',
+    'tesla': 'TSLA', '테슬라': 'TSLA',
+    'nvidia': 'NVDA', '엔비디아': 'NVDA',
+    'microsoft': 'MSFT', '마이크로소프트': 'MSFT',
+    'google': 'GOOGL', '구글': 'GOOGL',
+    'amazon': 'AMZN', '아마존': 'AMZN',
+    'meta': 'META', '메타': 'META',
+    'netflix': 'NFLX', '넷플릭스': 'NFLX',
+  };
+
+  window.addEventListener('load', () => {
+    document.getElementById('voiceInit').classList.add('show');
+  });
+
+  function initVoice() {
+    const utter = new SpeechSynthesisUtterance('');
+    utter.volume = 0;
+    speechSynthesis.speak(utter);
+    voiceReady = true;
+    document.getElementById('voiceInit').classList.remove('show');
+  }
+
+  function switchTab(tab) {
+    currentTab = tab;
+    document.getElementById('tab-kr').classList.toggle('active', tab === 'kr');
+    document.getElementById('tab-us').classList.toggle('active', tab === 'us');
+    document.getElementById('quick-kr').style.display = tab === 'kr' ? 'block' : 'none';
+    document.getElementById('quick-us').style.display = tab === 'us' ? 'block' : 'none';
+    const placeholder = tab === 'kr' ? '종목명 또는 6자리 코드 (예: 005930)' : '티커 입력 (예: AAPL, TSLA)';
+    document.getElementById('stockInput').placeholder = placeholder;
+  }
+
+  function toggleCheck(el) { el.classList.toggle('active'); }
+
+  function getChecked() {
+    return {
+      name: document.getElementById('chk-name').classList.contains('active'),
+      price: document.getElementById('chk-price').classList.contains('active'),
+      rate: document.getElementById('chk-rate').classList.contains('active'),
+      change: document.getElementById('chk-change').classList.contains('active'),
+    };
+  }
+
+  function addQuick(code, name, market) {
+    const id = market + ':' + code;
+    if (stocks.find(s => s.id === id)) return;
+    stocks.push({ id, code, name, market });
+    renderTags();
+  }
+
+  function addStock() {
+    const input = document.getElementById('stockInput');
+    const val = input.value.trim();
+    if (!val) return;
+
+    if (currentTab === 'kr') {
+      if (/^\d{6}$/.test(val)) {
+        const id = 'kr:' + val;
+        if (!stocks.find(s => s.id === id)) { stocks.push({ id, code: val, name: val, market: 'kr' }); renderTags(); }
+        input.value = ''; return;
+      }
+      const lower = val.toLowerCase();
+      const code = krStockMap[lower] || krStockMap[val];
+      if (code) {
+        const id = 'kr:' + code;
+        if (!stocks.find(s => s.id === id)) { stocks.push({ id, code, name: val, market: 'kr' }); renderTags(); }
+      } else {
+        alert('종목을 찾을 수 없습니다.\n6자리 종목코드를 입력해 주세요. (예: 005930)');
+      }
+    } else {
+      const upper = val.toUpperCase();
+      const lower = val.toLowerCase();
+      const code = usStockMap[lower] || usStockMap[val] || upper;
+      const id = 'us:' + code;
+      if (!stocks.find(s => s.id === id)) { stocks.push({ id, code, name: code, market: 'us' }); renderTags(); }
+    }
+    input.value = '';
+  }
+
+  document.getElementById('stockInput').addEventListener('keydown', e => { if (e.key === 'Enter') addStock(); });
+
+  function removeStock(id) {
+    stocks = stocks.filter(s => s.id !== id);
+    renderTags(); renderPriceBoard();
+  }
+
+  function renderTags() {
+    document.getElementById('stockTags').innerHTML = stocks.map(s => `
+      <div class="stock-tag ${s.market}">
+        <span>${s.market === 'kr' ? '🇰🇷' : '🇺🇸'}</span>
+        <span>${s.name}</span>
+        <span class="remove" onclick="removeStock('${s.id}')">×</span>
+      </div>
+    `).join('');
+  }
+
+  function setInterval_(sec, btn) {
+    intervalSec = sec;
+    document.querySelectorAll('.interval-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  async function fetchPrice(stock) {
+    try {
+      const symbol = stock.market === 'kr' ? stock.code + '.KS' : stock.code;
+      const url = `${WORKER}/?symbol=${symbol}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) throw new Error('fetch fail');
+      const data = await res.json();
+      const meta = data?.chart?.result?.[0]?.meta;
+      if (!meta) return null;
+      const price = meta.regularMarketPrice;
+      const prevClose = meta.chartPreviousClose || meta.previousClose;
+      const change = price - prevClose;
+      const rate = ((change / prevClose) * 100);
+      const sign = change > 0 ? 'up' : change < 0 ? 'down' : 'flat';
+      const isKr = stock.market === 'kr';
+      return {
+        price: isKr ? Math.round(price).toLocaleString() + '원' : '$' + price.toFixed(2),
+        priceRaw: isKr ? Math.round(price).toLocaleString() : price.toFixed(2),
+        changeVal: isKr ? Math.abs(Math.round(change)).toLocaleString() + '원' : '$' + Math.abs(change).toFixed(2),
+        changeRaw: isKr ? Math.abs(Math.round(change)).toLocaleString() : Math.abs(change).toFixed(2),
+        rateVal: Math.abs(rate).toFixed(2),
+        sign,
+        currency: isKr ? '원' : '달러'
+      };
+    } catch(e) { return null; }
+  }
+
+  function renderPriceBoard() {
+    const board = document.getElementById('priceBoard');
+    const placeholder = document.getElementById('pricePlaceholder');
+    if (stocks.length === 0) {
+      board.classList.remove('visible');
+      placeholder.style.display = 'block';
+      return;
+    }
+    placeholder.style.display = 'none';
+    board.classList.add('visible');
+    board.innerHTML = stocks.map(s => `
+      <div class="price-row ${s.market}" id="pr-${s.id.replace(':','-')}">
+        <div>
+          <div class="price-name">${s.market === 'kr' ? '🇰🇷' : '🇺🇸'} ${s.name}</div>
+        </div>
+        <div class="price-values">
+          <div class="price-current" id="pc-${s.id.replace(':','-')}">불러오는 중...</div>
+          <div class="price-change flat" id="pch-${s.id.replace(':','-')}">--</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function updatePrices() {
+    const errEl = document.getElementById('errorMsg');
+    let anyError = false;
+    for (const stock of stocks) {
+      const data = await fetchPrice(stock);
+      const safeId = stock.id.replace(':','-');
+      if (!data) { anyError = true; continue; }
+      const priceEl = document.getElementById(`pc-${safeId}`);
+      const changeEl = document.getElementById(`pch-${safeId}`);
+      if (!priceEl) continue;
+      errEl.textContent = '';
+      const arrow = data.sign === 'up' ? '▲' : data.sign === 'down' ? '▼' : '─';
+      const signTxt = data.sign === 'up' ? '+' : data.sign === 'down' ? '-' : '';
+      priceEl.textContent = data.price;
+      changeEl.textContent = `${arrow} ${signTxt}${data.changeVal} (${signTxt}${data.rateVal}%)`;
+      changeEl.className = `price-change ${data.sign}`;
+
+      if (document.getElementById('voiceToggle').checked && voiceReady) {
+        const checked = getChecked();
+        let parts = [];
+        if (checked.name) parts.push(stock.name);
+        if (checked.price) parts.push(`현재가 ${data.priceRaw}${data.currency}`);
+        if (checked.rate) {
+          const sw = data.sign === 'up' ? '플러스' : data.sign === 'down' ? '마이너스' : '';
+          parts.push(`${sw} ${data.rateVal}퍼센트`);
+        }
+        if (checked.change) {
+          const sw = data.sign === 'up' ? '플러스' : data.sign === 'down' ? '마이너스' : '';
+          parts.push(`전일대비 ${sw} ${data.changeRaw}${data.currency}`);
+        }
+        if (parts.length > 0) queueSpeak(parts.join(', '));
+      }
+    }
+    if (anyError) errEl.textContent = '⚠ 일부 종목을 불러오지 못했습니다.';
+  }
+
+  function queueSpeak(text) {
+    speechQueue.push(text);
+    if (!isSpeaking) processQueue();
+  }
+
+  function processQueue() {
+    if (speechQueue.length === 0) { isSpeaking = false; return; }
+    isSpeaking = true;
+    const text = speechQueue.shift();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'ko-KR';
+    utter.rate = 1.0;
+    utter.onend = () => processQueue();
+    speechSynthesis.speak(utter);
+  }
+
+  function startCountdown() {
+    nextSec = intervalSec;
+    if (countdown) clearInterval(countdown);
+    countdown = setInterval(() => {
+      nextSec--;
+      document.getElementById('nextTime').textContent = `다음 안내 ${nextSec}초 후`;
+      if (nextSec <= 0) nextSec = intervalSec;
+    }, 1000);
+  }
+
+  async function toggleService() {
+    if (!running) {
+      if (stocks.length === 0) { alert('종목을 먼저 추가해 주세요!'); return; }
+      running = true;
+      document.getElementById('mainBtn').textContent = '■ 정지';
+      document.getElementById('mainBtn').className = 'btn-main btn-stop';
+      document.getElementById('statusDot').classList.add('active');
+      document.getElementById('statusText').textContent = '안내 중';
+      renderPriceBoard();
+      await updatePrices();
+      startCountdown();
+      timer = setInterval(async () => { await updatePrices(); startCountdown(); }, intervalSec * 1000);
+    } else {
+      running = false;
+      clearInterval(timer); clearInterval(countdown);
+      speechSynthesis.cancel();
+      speechQueue = []; isSpeaking = false;
+      document.getElementById('mainBtn').textContent = '▶ 시작';
+      document.getElementById('mainBtn').className = 'btn-main btn-start';
+      document.getElementById('statusDot').classList.remove('active');
+      document.getElementById('statusText').textContent = '대기 중';
+      document.getElementById('nextTime').textContent = '';
+    }
+  }
+</script>
+</body>
+</html>
